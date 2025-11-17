@@ -1,0 +1,4 @@
+# Format: session_name.session api_id api_hash
+# Example:
+# 1234567890.session 12345678 abcdef1234567890abcdef1234567890
+

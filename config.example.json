@@ -1,0 +1,31 @@
+{
+  "WORK_FOLDER": "data",
+  "PROCESSED_CLIENTS": "processed_clients.txt",
+  "OPENAI": {
+    "API_KEY": "sk-your-openai-api-key-here",
+    "MODEL": "gpt-4o-mini",
+    "SYSTEM_TXT": "prompt.txt",
+    "PROXY": null,
+    "TARGET_CHATS": {
+      "POSITIVE": "@your_channel_or_chat_id",
+      "NEGATIVE": "@your_channel_or_chat_id"
+    },
+    "TRIGGER_PHRASES": {
+      "POSITIVE": "[INTERESTED]",
+      "NEGATIVE": "[NOT_INTERESTED]"
+    },
+    "USE_FALLBACK_ON_OPENAI_FAIL": false,
+    "FALLBACK_TEXT": "Извините, я сейчас занят. Напишу вам позже."
+  },
+  "PROJECT_NAME": "My Telegram Campaign",
+  "TELEGRAM_FORWARD_LIMIT": 5,
+  "TELEGRAM_HISTORY_LIMIT": 100,
+  "REPLY_ONLY_IF_PREVIOUSLY_WROTE": true,
+  "PRE_READ_DELAY_RANGE": [2, 5],
+  "READ_REPLY_DELAY_RANGE": [3, 8],
+  "ACCOUNT_LOOP_DELAY_RANGE": [60, 120],
+  "CHECK_NEW_MSG_INTERVAL_RANGE": [5, 10],
+  "DIALOG_WAIT_WINDOW_RANGE": [30, 60],
+  "SLEEP_PERIODS": ["21:00-08:00", "13:00-14:00"],
+  "TIMEZONE_OFFSET": 3
+}
