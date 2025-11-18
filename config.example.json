@@ -1,0 +1,32 @@
+{
+  "WORK_FOLDER": "data",
+  "PROCESSED_CLIENTS": "processed_clients.txt",
+  "PROJECT_NAME": "Ваш проект",
+  "OPENAI": {
+    "API_KEY": "ИСПОЛЬЗУЙТЕ_ПЕРЕМЕННУЮ_ОКРУЖЕНИЯ_OPENAI_API_KEY",
+    "MODEL": "gpt-4",
+    "PROXY": null,
+    "SYSTEM_TXT": "prompt.txt",
+    "TRIGGER_PHRASES": {
+      "POSITIVE": "Отлично, рад, что смог вас заинтересовать",
+      "NEGATIVE": "Вижу, что не смог вас заинтересовать"
+    },
+    "TARGET_CHATS": {
+      "POSITIVE": "@your_channel",
+      "NEGATIVE": "@your_channel"
+    },
+    "USE_FALLBACK_ON_OPENAI_FAIL": false,
+    "FALLBACK_TEXT": ""
+  },
+  "TELEGRAM_FORWARD_LIMIT": 5,
+  "REPLY_ONLY_IF_PREVIOUSLY_WROTE": true,
+  "TELEGRAM_HISTORY_LIMIT": 20,
+  "PRE_READ_DELAY_RANGE": [5.0, 10.0],
+  "READ_REPLY_DELAY_RANGE": [5.0, 10.0],
+  "ACCOUNT_LOOP_DELAY_RANGE": [90.0, 180.0],
+  "CHECK_NEW_MSG_INTERVAL_RANGE": [7.0, 12.0],
+  "DIALOG_WAIT_WINDOW_RANGE": [40.0, 60.0],
+  "SLEEP_PERIODS": ["20:00-08:00", "13:00-14:30"],
+  "TIMEZONE_OFFSET": 3
+}
+

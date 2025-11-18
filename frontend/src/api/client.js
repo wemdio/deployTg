@@ -1,5 +1,11 @@
 import axios from 'axios';
 
+// API URL Configuration
+// ⚠️ ВАЖНО: В production обязательно установите REACT_APP_API_URL!
+// Timeweb Dashboard → Ваше приложение → Переменные → Добавить:
+//   REACT_APP_API_URL=https://ваш-backend.twc1.net
+//
+// Development: использует localhost:8000
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const api = axios.create({

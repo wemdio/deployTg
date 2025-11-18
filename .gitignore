@@ -1,0 +1,175 @@
+# ===============================================
+# БЕЗОПАСНОСТЬ - НИКОГДА НЕ КОММИТИТЬ!
+# ===============================================
+
+# Конфиги с секретами
+config.json
+*/config.json
+**/config.json
+
+# Сессии Telegram
+*.session
+*.session-journal
+*.session.backup
+
+# JSON с credentials
+**/data/sessions/*.json
+backend/data/sessions/*.json
+data/sessions/*.json
+
+# API ключи
+api_map.txt
+proxies.txt
+
+# Переменные окружения
+.env
+.env.local
+.env.*.local
+
+# ===============================================
+# РАБОЧИЕ ДАННЫЕ
+# ===============================================
+
+# Логи
+*.log
+errors.log
+**/errors.log
+
+# Обработанные клиенты
+processed_clients.txt
+processed_users.txt
+
+# История диалогов
+**/convos/*.jsonl
+campaigns_runtime/*/data/convos/
+
+# Runtime данные кампаний
+campaigns_runtime/*/
+backend/campaigns_runtime/*/
+
+# ===============================================
+# Python
+# ===============================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# ===============================================
+# Node.js / Frontend
+# ===============================================
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Production build
+/build
+frontend/build/
+
+# Testing
+/coverage
+
+# Misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===============================================
+# IDE
+# ===============================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ===============================================
+# OS
+# ===============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+# ===============================================
+# РАЗРЕШЕННЫЕ ИСКЛЮЧЕНИЯ
+# (Эти файлы можно коммитить)
+# ===============================================
+
+# Пример конфига без секретов
+!config.example.json
+
+# Frontend публичные файлы
+!frontend/public/
+!frontend/src/
+
+# Backend код (без данных)
+!backend/app/
+!backend/requirements.txt
+!backend/start.sh
+

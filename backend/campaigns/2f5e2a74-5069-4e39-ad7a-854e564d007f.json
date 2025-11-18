@@ -1,0 +1,54 @@
+{
+  "id": "2f5e2a74-5069-4e39-ad7a-854e564d007f",
+  "name": "cx",
+  "status": "stopped",
+  "accounts": [],
+  "openai_settings": {
+    "api_key": "",
+    "model": "gpt-4",
+    "proxy": null,
+    "system_prompt": "",
+    "project_name": "",
+    "trigger_phrases_positive": "ИНТЕРЕСНО",
+    "trigger_phrases_negative": "НЕ_ИНТЕРЕСНО",
+    "target_chats_positive": "",
+    "target_chats_negative": "",
+    "use_fallback_on_fail": false,
+    "fallback_text": ""
+  },
+  "telegram_settings": {
+    "forward_limit": 5,
+    "reply_only_if_previously_wrote": true,
+    "history_limit": 20,
+    "pre_read_delay_range": [
+      5.0,
+      10.0
+    ],
+    "read_reply_delay_range": [
+      5.0,
+      10.0
+    ],
+    "account_loop_delay_range": [
+      90.0,
+      180.0
+    ],
+    "check_new_msg_interval_range": [
+      7.0,
+      12.0
+    ],
+    "dialog_wait_window_range": [
+      40.0,
+      60.0
+    ],
+    "sleep_periods": [
+      "20:00-08:00",
+      "13:00-14:30"
+    ],
+    "timezone_offset": 3
+  },
+  "work_folder": "C:\\Users\\wemd1\\Desktop\\tgrespNadeploy\\campaigns_runtime\\2f5e2a74-5069-4e39-ad7a-854e564d007f\\data",
+  "processed_clients_file": "C:\\Users\\wemd1\\Desktop\\tgrespNadeploy\\campaigns_runtime\\2f5e2a74-5069-4e39-ad7a-854e564d007f\\processed_clients.txt",
+  "proxy_list": "",
+  "created_at": "2025-11-17T18:54:50.216871",
+  "updated_at": "2025-11-17T18:54:50.216871"
+}

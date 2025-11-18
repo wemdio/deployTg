@@ -1,12 +1,15 @@
 import axios from 'axios';
 
 // API URL Configuration
-// Production: использует Timeweb Backend URL
+// Production: использует Backend URL
 // Development: использует localhost
-// Можно переопределить через REACT_APP_API_URL
+// 
+// ⚠️ ВАЖНО: Установите REACT_APP_API_URL в переменных окружения Timeweb!
+// Пример: REACT_APP_API_URL=https://ваш-backend.twc1.net
+//
 const API_URL = process.env.REACT_APP_API_URL || 
                 (process.env.NODE_ENV === 'production' 
-                  ? 'https://wemdio-deploytg-e061.twc1.net' 
+                  ? 'https://wemdio-deploytg-e061.twc1.net'  // ← ЗАМЕНИТЕ на ваш Backend URL
                   : 'http://localhost:8000');
 
 const api = axios.create({
