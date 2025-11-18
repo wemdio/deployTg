@@ -24,6 +24,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Health check endpoint для Timeweb Cloud
+@app.get("/")
+@app.head("/")
+async def health_check():
+    """Health check endpoint для проверки работоспособности приложения"""
+    return {
+        "status": "ok",
+        "service": "Telegram Auto-Responder Backend",
+        "version": "1.0.0"
+    }
+
 # Подключаем роутеры
 app.include_router(campaigns.router)
 app.include_router(accounts.router)
