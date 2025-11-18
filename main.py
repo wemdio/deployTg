@@ -35,42 +35,136 @@ except ImportError:
 
 # ======================== CONFIG ========================
 print("="*80)
-print("MAIN.PY STARTED")
+print("MAIN.PY STARTED - ENV-FIRST CONFIGURATION")
 print(f"Current directory: {os.getcwd()}")
 print(f"Config file exists: {os.path.exists('config.json')}")
 print("="*80)
 
-with open("config.json", "r", encoding="utf-8") as f:
-    CONFIG = json.load(f)
-
-WORK_FOLDER = CONFIG["WORK_FOLDER"]
-PROCESSED_FILE = CONFIG["PROCESSED_CLIENTS"]
-OPENAI_CFG = CONFIG["OPENAI"]
-
-# Переменная окружения OPENAI_API_KEY имеет приоритет над config.json
-if os.getenv("OPENAI_API_KEY"):
-    OPENAI_CFG["API_KEY"] = os.getenv("OPENAI_API_KEY")
-    print(f"✅ Using OPENAI_API_KEY from environment variable")
+# Загружаем config.json если он есть (для локальной разработки)
+CONFIG = {}
+if os.path.exists("config.json"):
+    try:
+        with open("config.json", "r", encoding="utf-8") as f:
+            CONFIG = json.load(f)
+        print("📄 Loaded config.json (will be overridden by ENV variables)")
+    except Exception as e:
+        print(f"⚠️  Warning: Failed to load config.json: {e}")
+        CONFIG = {}
 else:
-    print(f"ℹ️  Using OPENAI_API_KEY from config.json")
+    print("ℹ️  No config.json found - using ENV variables and defaults")
 
-FORWARD_LIMIT = CONFIG.get("TELEGRAM_FORWARD_LIMIT", 5)
-REPLY_ONLY_IF_PREV = CONFIG.get("REPLY_ONLY_IF_PREVIOUSLY_WROTE", True)
-PROJECT_NAME = CONFIG.get("PROJECT_NAME", "")
-TELEGRAM_HISTORY_LIMIT = CONFIG.get("TELEGRAM_HISTORY_LIMIT", 100)
-PRE_READ_DELAY_RANGE = CONFIG.get("PRE_READ_DELAY_RANGE", [0, 0])
-READ_REPLY_DELAY_RANGE = CONFIG.get("READ_REPLY_DELAY_RANGE", [0, 0])
-ACCOUNT_LOOP_DELAY_RANGE = CONFIG.get("ACCOUNT_LOOP_DELAY_RANGE", [60, 60])
-CHECK_NEW_MSG_INTERVAL_RANGE = CONFIG.get("CHECK_NEW_MSG_INTERVAL_RANGE", [5, 5])
-DIALOG_WAIT_WINDOW_RANGE = CONFIG.get("DIALOG_WAIT_WINDOW_RANGE", [30, 30])
-SLEEP_PERIODS_RAW = CONFIG.get("SLEEP_PERIODS", [])
+# Вспомогательная функция для получения значений с приоритетом: ENV > config.json > default
+def get_config(env_key: str, config_path: list, default=None, parse_json=False):
+    """
+    Получает значение конфигурации с приоритетом:
+    1. Переменная окружения (ENV)
+    2. Значение из config.json
+    3. Дефолтное значение
+    
+    parse_json: если True, пытается распарсить значение из ENV как JSON
+    """
+    # Проверяем ENV
+    env_value = os.getenv(env_key)
+    if env_value is not None:
+        if parse_json and env_value:
+            try:
+                return json.loads(env_value)
+            except:
+                print(f"⚠️  Warning: Failed to parse {env_key} as JSON, using as string")
+                return env_value
+        return env_value
+    
+    # Проверяем config.json
+    value = CONFIG
+    for key in config_path:
+        if isinstance(value, dict) and key in value:
+            value = value[key]
+        else:
+            return default
+    return value if value != CONFIG else default
+
+# ======================== ОСНОВНЫЕ НАСТРОЙКИ ========================
+WORK_FOLDER = get_config("WORK_FOLDER", ["WORK_FOLDER"], "data")
+PROCESSED_FILE = get_config("PROCESSED_FILE", ["PROCESSED_CLIENTS"], "processed_clients.txt")
+
+# ======================== OPENAI НАСТРОЙКИ ========================
+OPENAI_CFG = {
+    "API_KEY": get_config("OPENAI_API_KEY", ["OPENAI", "API_KEY"], ""),
+    "MODEL": get_config("OPENAI_MODEL", ["OPENAI", "MODEL"], "gpt-4o-mini"),
+    "SYSTEM_TXT": get_config("OPENAI_SYSTEM_TXT", ["OPENAI", "SYSTEM_TXT"], "prompt.txt"),
+    "PROXY": get_config("OPENAI_PROXY", ["OPENAI", "PROXY"], None),
+    "TARGET_CHATS": {
+        "POSITIVE": get_config("TARGET_CHAT_POSITIVE", ["OPENAI", "TARGET_CHATS", "POSITIVE"], ""),
+        "NEGATIVE": get_config("TARGET_CHAT_NEGATIVE", ["OPENAI", "TARGET_CHATS", "NEGATIVE"], "")
+    },
+    "TRIGGER_PHRASES": {
+        "POSITIVE": get_config("TRIGGER_PHRASE_POSITIVE", ["OPENAI", "TRIGGER_PHRASES", "POSITIVE"], "[INTERESTED]"),
+        "NEGATIVE": get_config("TRIGGER_PHRASE_NEGATIVE", ["OPENAI", "TRIGGER_PHRASES", "NEGATIVE"], "[NOT_INTERESTED]")
+    },
+    "USE_FALLBACK_ON_OPENAI_FAIL": get_config("USE_FALLBACK_ON_OPENAI_FAIL", ["OPENAI", "USE_FALLBACK_ON_OPENAI_FAIL"], False, parse_json=True),
+    "FALLBACK_TEXT": get_config("FALLBACK_TEXT", ["OPENAI", "FALLBACK_TEXT"], "")
+}
+
+# Проверка обязательных параметров
+if not OPENAI_CFG["API_KEY"]:
+    print("❌ ERROR: OPENAI_API_KEY is required! Set it via ENV or config.json")
+    print("   Example: export OPENAI_API_KEY='sk-your-key-here'")
+    exit(1)
+
+if not OPENAI_CFG["TARGET_CHATS"]["POSITIVE"] or not OPENAI_CFG["TARGET_CHATS"]["NEGATIVE"]:
+    print("❌ ERROR: Target chats are required!")
+    print("   Set TARGET_CHAT_POSITIVE and TARGET_CHAT_NEGATIVE via ENV or config.json")
+    exit(1)
+
+print(f"✅ OpenAI API Key: {'*' * 10}{OPENAI_CFG['API_KEY'][-4:] if len(OPENAI_CFG['API_KEY']) > 4 else '****'}")
+print(f"✅ OpenAI Model: {OPENAI_CFG['MODEL']}")
+print(f"✅ Target Chat (Positive): {OPENAI_CFG['TARGET_CHATS']['POSITIVE']}")
+print(f"✅ Target Chat (Negative): {OPENAI_CFG['TARGET_CHATS']['NEGATIVE']}")
+
+# ======================== TELEGRAM НАСТРОЙКИ ========================
+PROJECT_NAME = get_config("PROJECT_NAME", ["PROJECT_NAME"], "")
+FORWARD_LIMIT = int(get_config("TELEGRAM_FORWARD_LIMIT", ["TELEGRAM_FORWARD_LIMIT"], 5))
+TELEGRAM_HISTORY_LIMIT = int(get_config("TELEGRAM_HISTORY_LIMIT", ["TELEGRAM_HISTORY_LIMIT"], 100))
+REPLY_ONLY_IF_PREV = get_config("REPLY_ONLY_IF_PREVIOUSLY_WROTE", ["REPLY_ONLY_IF_PREVIOUSLY_WROTE"], True, parse_json=True)
+
+# ======================== ЗАДЕРЖКИ И ТАЙМАУТЫ ========================
+def parse_range(value, default):
+    """Парсит диапазон из строки '[min,max]' или возвращает дефолт"""
+    if isinstance(value, list) and len(value) == 2:
+        return [float(value[0]), float(value[1])]
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list) and len(parsed) == 2:
+                return [float(parsed[0]), float(parsed[1])]
+        except:
+            pass
+    return default
+
+PRE_READ_DELAY_RANGE = parse_range(get_config("PRE_READ_DELAY_RANGE", ["PRE_READ_DELAY_RANGE"], None), [2, 5])
+READ_REPLY_DELAY_RANGE = parse_range(get_config("READ_REPLY_DELAY_RANGE", ["READ_REPLY_DELAY_RANGE"], None), [3, 8])
+ACCOUNT_LOOP_DELAY_RANGE = parse_range(get_config("ACCOUNT_LOOP_DELAY_RANGE", ["ACCOUNT_LOOP_DELAY_RANGE"], None), [60, 120])
+CHECK_NEW_MSG_INTERVAL_RANGE = parse_range(get_config("CHECK_NEW_MSG_INTERVAL_RANGE", ["CHECK_NEW_MSG_INTERVAL_RANGE"], None), [5, 10])
+DIALOG_WAIT_WINDOW_RANGE = parse_range(get_config("DIALOG_WAIT_WINDOW_RANGE", ["DIALOG_WAIT_WINDOW_RANGE"], None), [30, 60])
+
+# ======================== ПЕРИОДЫ СНА ========================
+SLEEP_PERIODS_RAW = get_config("SLEEP_PERIODS", ["SLEEP_PERIODS"], "")
 # Поддержка разных форматов:
 # 1. Строка: "21:00-08:00,13:00-14:00"
-# 2. Массив строк: ["21:00-08:00", "13:00-14:00"]  
-# 3. Массив с одной строкой: ["21:00-08:00, 13:00-14:00"]
+# 2. JSON массив: '["21:00-08:00", "13:00-14:00"]'
 if isinstance(SLEEP_PERIODS_RAW, str):
-    # Строка - разбиваем по запятой
-    SLEEP_PERIODS = [p.strip() for p in SLEEP_PERIODS_RAW.split(",") if p.strip()]
+    if SLEEP_PERIODS_RAW.startswith('['):
+        # Пытаемся распарсить как JSON
+        try:
+            SLEEP_PERIODS_RAW = json.loads(SLEEP_PERIODS_RAW)
+        except:
+            pass
+    
+    if isinstance(SLEEP_PERIODS_RAW, str):
+        # Строка - разбиваем по запятой
+        SLEEP_PERIODS = [p.strip() for p in SLEEP_PERIODS_RAW.split(",") if p.strip()]
+    else:
+        SLEEP_PERIODS = SLEEP_PERIODS_RAW
 elif isinstance(SLEEP_PERIODS_RAW, list):
     # Массив - обрабатываем каждый элемент
     SLEEP_PERIODS = []
@@ -83,7 +177,14 @@ elif isinstance(SLEEP_PERIODS_RAW, list):
                 SLEEP_PERIODS.append(item.strip())
 else:
     SLEEP_PERIODS = []
-TIMEZONE_OFFSET = CONFIG.get("TIMEZONE_OFFSET", 3)  # Часовой пояс (по умолчанию +3 МСК)
+
+TIMEZONE_OFFSET = int(get_config("TIMEZONE_OFFSET", ["TIMEZONE_OFFSET"], 3))
+
+print(f"ℹ️  Work folder: {WORK_FOLDER}")
+print(f"ℹ️  Timezone offset: UTC+{TIMEZONE_OFFSET}")
+if SLEEP_PERIODS:
+    print(f"ℹ️  Sleep periods: {', '.join(SLEEP_PERIODS)}")
+print("="*80)
 
 os.makedirs(WORK_FOLDER, exist_ok=True)
 if not os.path.exists(PROCESSED_FILE):
