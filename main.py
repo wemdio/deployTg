@@ -46,6 +46,14 @@ with open("config.json", "r", encoding="utf-8") as f:
 WORK_FOLDER = CONFIG["WORK_FOLDER"]
 PROCESSED_FILE = CONFIG["PROCESSED_CLIENTS"]
 OPENAI_CFG = CONFIG["OPENAI"]
+
+# Переменная окружения OPENAI_API_KEY имеет приоритет над config.json
+if os.getenv("OPENAI_API_KEY"):
+    OPENAI_CFG["API_KEY"] = os.getenv("OPENAI_API_KEY")
+    print(f"✅ Using OPENAI_API_KEY from environment variable")
+else:
+    print(f"ℹ️  Using OPENAI_API_KEY from config.json")
+
 FORWARD_LIMIT = CONFIG.get("TELEGRAM_FORWARD_LIMIT", 5)
 REPLY_ONLY_IF_PREV = CONFIG.get("REPLY_ONLY_IF_PREVIOUSLY_WROTE", True)
 PROJECT_NAME = CONFIG.get("PROJECT_NAME", "")

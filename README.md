@@ -90,9 +90,22 @@ python main.py
 
 ## Переменные окружения
 
-Создайте следующие ENV переменные в Timeweb:
-- `OPENAI_API_KEY` - ваш OpenAI API ключ
-- Все остальное настраивается через `config.json`
+### OPENAI_API_KEY (рекомендуется)
+
+Worker поддерживает чтение OpenAI API ключа из переменной окружения:
+
+```bash
+export OPENAI_API_KEY="sk-your-key-here"  # Linux/Mac
+set OPENAI_API_KEY=sk-your-key-here       # Windows
+```
+
+**Приоритет:**
+1. ✅ Если установлена переменная окружения `OPENAI_API_KEY` - используется она
+2. 📄 Если переменной нет - используется значение из `config.json`
+
+**Для Timeweb Cloud:**
+- Добавьте переменную окружения `OPENAI_API_KEY` в настройках приложения
+- В `config.json` можно оставить любое значение в поле `API_KEY` (оно будет проигнорировано)
 
 ## Структура данных
 
