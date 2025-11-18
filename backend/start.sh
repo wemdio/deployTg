@@ -5,10 +5,13 @@ echo "  TG Auto-Responder Backend"
 echo "================================"
 echo ""
 
+# Переходим в папку backend
+cd backend || exit 1
+
 # Создаем необходимые папки
-mkdir -p backend/campaigns
-mkdir -p backend/campaigns_runtime
-mkdir -p backend/data/sessions
+mkdir -p campaigns
+mkdir -p campaigns_runtime
+mkdir -p data/sessions
 
 echo "✅ Directories created"
 echo ""
