@@ -22,6 +22,37 @@ class AccountCreate(BaseModel):
     proxy: Optional[str] = None
 
 
+# ============================================
+# СПЕЦИФИЧНЫЕ МАРШРУТЫ (БЕЗ ПАРАМЕТРОВ) - ДОЛЖНЫ БЫТЬ ПЕРВЫМИ!
+# ============================================
+
+@router.get("/available")
+async def get_available_sessions():
+    """Получить список доступных сессий"""
+    sessions_dir = Path("backend/data/sessions")
+    if not sessions_dir.exists():
+        return []
+    
+    sessions = []
+    for file in sessions_dir.glob("*.session"):
+        session_name = file.stem
+        json_file = sessions_dir / f"{session_name}.json"
+        
+        has_json = json_file.exists()
+        
+        sessions.append({
+            "session_name": session_name,
+            "has_credentials": has_json,
+            "file_path": str(file)
+        })
+    
+    return sessions
+
+
+# ============================================
+# ПАРАМЕТРИЧЕСКИЕ МАРШРУТЫ (С {campaign_id})
+# ============================================
+
 @router.get("/{campaign_id}")
 async def get_campaign_accounts(campaign_id: str):
     """Получить список аккаунтов кампании"""
@@ -206,27 +237,3 @@ async def upload_json(
         "session_name": session_name,
         "account": account.dict()
     }
-
-
-@router.get("/available")
-async def get_available_sessions():
-    """Получить список доступных сессий"""
-    sessions_dir = Path("backend/data/sessions")
-    if not sessions_dir.exists():
-        return []
-    
-    sessions = []
-    for file in sessions_dir.glob("*.session"):
-        session_name = file.stem
-        json_file = sessions_dir / f"{session_name}.json"
-        
-        has_json = json_file.exists()
-        
-        sessions.append({
-            "session_name": session_name,
-            "has_credentials": has_json,
-            "file_path": str(file)
-        })
-    
-    return sessions
-
