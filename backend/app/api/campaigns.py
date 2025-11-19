@@ -46,12 +46,14 @@ class CampaignCreate(BaseModel):
     name: str
     openai_settings: Optional[OpenAISettings] = None
     telegram_settings: Optional[TelegramSettings] = None
+    proxy_list: Optional[str] = None
 
 
 class CampaignUpdate(BaseModel):
     name: Optional[str] = None
     openai_settings: Optional[OpenAISettings] = None
     telegram_settings: Optional[TelegramSettings] = None
+    proxy_list: Optional[str] = None
 
 
 @router.get("/")
@@ -77,6 +79,7 @@ async def create_campaign(campaign_data: CampaignCreate):
         "name": campaign_data.name,
         "status": "stopped",
         "accounts": [],
+        "proxy_list": campaign_data.proxy_list or "",
         "openai_settings": campaign_data.openai_settings.dict() if campaign_data.openai_settings else OpenAISettings().dict(),
         "telegram_settings": campaign_data.telegram_settings.dict() if campaign_data.telegram_settings else TelegramSettings().dict(),
         "created_at": datetime.now().isoformat(),
@@ -119,6 +122,9 @@ async def update_campaign(campaign_id: str, updates: CampaignUpdate):
     
     if updates.telegram_settings is not None:
         campaign["telegram_settings"] = updates.telegram_settings.dict()
+    
+    if updates.proxy_list is not None:
+        campaign["proxy_list"] = updates.proxy_list
     
     campaign["updated_at"] = datetime.now().isoformat()
     

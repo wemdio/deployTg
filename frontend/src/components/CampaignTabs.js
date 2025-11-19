@@ -17,12 +17,22 @@ function CampaignTabs({ campaigns, onUpdate }) {
   const [statuses, setStatuses] = useState({});
 
   useEffect(() => {
-    // Загрузить статусы всех кампаний
-    loadStatuses();
+    let isMounted = true;
+    let timeoutId;
+
+    const fetchStatuses = async () => {
+      await loadStatuses();
+      if (isMounted) {
+        timeoutId = setTimeout(fetchStatuses, 5000);
+      }
+    };
+
+    fetchStatuses();
     
-    // Обновлять статусы каждые 5 секунд
-    const interval = setInterval(loadStatuses, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaigns]);
 

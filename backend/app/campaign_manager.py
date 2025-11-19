@@ -44,16 +44,25 @@ class CampaignManager:
                 print(f"❌ Failed to load campaign {file}: {e}")
     
     def save_campaign(self, campaign: dict):
-        """Сохраняет кампанию в файл"""
+        """Сохраняет кампанию в файл (с использованием временного файла для атомарности)"""
         campaign_id = campaign["id"]
         file_path = self.campaigns_dir / f"{campaign_id}.json"
+        temp_path = self.campaigns_dir / f"{campaign_id}.json.tmp"
         
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(campaign, f, indent=2, ensure_ascii=False)
-        
-        self.campaigns[campaign_id] = campaign
-        print(f"💾 Saved campaign: {campaign['name']} ({campaign_id})")
-    
+        try:
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(campaign, f, indent=2, ensure_ascii=False)
+            
+            # Атомарно заменяем старый файл новым
+            temp_path.replace(file_path)
+            
+            self.campaigns[campaign_id] = campaign
+            print(f"💾 Saved campaign: {campaign['name']} ({campaign_id})")
+        except Exception as e:
+            print(f"❌ Failed to save campaign {campaign_id}: {e}")
+            if temp_path.exists():
+                temp_path.unlink()
+
     def get_campaign(self, campaign_id: str) -> Optional[dict]:
         """Получает кампанию по ID"""
         return self.campaigns.get(campaign_id)
@@ -269,35 +278,45 @@ class CampaignManager:
     
     def get_campaign_status(self, campaign_id: str) -> dict:
         """Получает статус кампании"""
-        campaign = self.get_campaign(campaign_id)
-        if not campaign:
-            return {"status": "not_found"}
-        
-        is_running = False
-        pid = None
-        
-        if campaign_id in self.processes:
-            proc = self.processes[campaign_id]
-            if proc.poll() is None:
-                is_running = True
-                pid = proc.pid
-            else:
-                # Процесс завершился
-                del self.processes[campaign_id]
-        
-        # Обновляем статус если нужно
-        if is_running and campaign["status"] != "running":
-            campaign["status"] = "running"
-            self.save_campaign(campaign)
-        elif not is_running and campaign["status"] == "running":
-            campaign["status"] = "stopped"
-            self.save_campaign(campaign)
-        
-        return {
-            "status": campaign["status"],
-            "is_running": is_running,
-            "pid": pid
-        }
+        try:
+            campaign = self.get_campaign(campaign_id)
+            if not campaign:
+                return {"status": "not_found"}
+            
+            is_running = False
+            pid = None
+            
+            if campaign_id in self.processes:
+                proc = self.processes[campaign_id]
+                if proc.poll() is None:
+                    is_running = True
+                    pid = proc.pid
+                else:
+                    # Процесс завершился
+                    del self.processes[campaign_id]
+            
+            # Обновляем статус если нужно
+            current_status = campaign.get("status", "stopped")
+            if is_running and current_status != "running":
+                campaign["status"] = "running"
+                self.save_campaign(campaign)
+            elif not is_running and current_status == "running":
+                campaign["status"] = "stopped"
+                self.save_campaign(campaign)
+            
+            return {
+                "status": campaign["status"],
+                "is_running": is_running,
+                "pid": pid
+            }
+        except Exception as e:
+            print(f"❌ Error getting status for {campaign_id}: {e}")
+            return {
+                "status": "error",
+                "is_running": False,
+                "pid": None,
+                "error": str(e)
+            }
     
     async def restore_running_campaigns(self):
         """Восстанавливает запущенные кампании после перезапуска"""
