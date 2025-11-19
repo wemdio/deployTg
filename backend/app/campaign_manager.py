@@ -123,14 +123,20 @@ class CampaignManager:
                 if src_json.exists():
                     shutil.copy(src_json, data_path / "sessions")
         
-        # Создаем api_map.txt
+        # Создаем api_map.txt с привязанными прокси
         api_map_lines = []
+        proxy_map = {}  # {session_name: proxy}
+        
         for account in campaign.get("accounts", []):
             session_name = account.get("session_name")
             api_id = account.get("api_id")
             api_hash = account.get("api_hash")
+            proxy = account.get("proxy", "")
+            
             if session_name and api_id and api_hash:
                 api_map_lines.append(f"{session_name}.session {api_id} {api_hash}")
+                if proxy and proxy.strip():
+                    proxy_map[session_name] = proxy.strip()
         
         with open(runtime_path / "api_map.txt", "w", encoding="utf-8") as f:
             f.write("\n".join(api_map_lines))
@@ -140,11 +146,28 @@ class CampaignManager:
         with open(runtime_path / "prompt.txt", "w", encoding="utf-8") as f:
             f.write(prompt)
         
-        # Создаем proxies.txt (опционально)
+        # Создаем proxies.txt
+        # Логика: если есть привязанные прокси - используем их,
+        # если нет привязанных, но есть общий список - используем общий список
         proxy_list = campaign.get("proxy_list", "")
-        if proxy_list:
+        
+        if proxy_map:
+            # Есть привязанные прокси - создаем специальный формат
+            # session_name:proxy на каждой строке
+            proxy_lines = []
+            for session_name, proxy in proxy_map.items():
+                proxy_lines.append(f"{session_name}.session:{proxy}")
+            
+            with open(runtime_path / "proxies.txt", "w", encoding="utf-8") as f:
+                f.write("\n".join(proxy_lines))
+            
+            print(f"✅ Created proxies.txt with {len(proxy_map)} account-specific proxies")
+        elif proxy_list:
+            # Нет привязанных, используем общий список (старая логика)
             with open(runtime_path / "proxies.txt", "w", encoding="utf-8") as f:
                 f.write(proxy_list)
+            
+            print(f"✅ Created proxies.txt with shared proxy pool")
         
         # Создаем processed_clients.txt
         processed_file = runtime_path / "processed_clients.txt"

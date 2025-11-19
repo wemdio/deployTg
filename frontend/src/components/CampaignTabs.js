@@ -43,7 +43,22 @@ function CampaignTabs({ campaigns, onUpdate }) {
         const response = await getCampaignStatus(campaign.id);
         newStatuses[campaign.id] = response.data;
       } catch (err) {
-        console.error(`Error loading status for ${campaign.id}:`, err);
+        // Тихо игнорируем ошибки сети (502, timeout и т.д.)
+        // Сохраняем предыдущий статус если он был
+        if (statuses[campaign.id]) {
+          newStatuses[campaign.id] = statuses[campaign.id];
+        } else {
+          // Если предыдущего статуса нет, используем fallback
+          newStatuses[campaign.id] = {
+            status: campaign.status || 'unknown',
+            is_running: false
+          };
+        }
+        
+        // Логируем только если это не сетевая ошибка
+        if (!err.message?.includes('Network Error') && !err.code?.includes('ERR_NETWORK')) {
+          console.error(`Error loading status for ${campaign.id}:`, err);
+        }
       }
     }
     setStatuses(newStatuses);

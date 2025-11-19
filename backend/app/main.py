@@ -47,17 +47,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS настройки
+# CORS настройки - разрешаем все источники для упрощения работы на Timeweb
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://*.twc1.net",
-        "*"  # В production лучше указать конкретные домены
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],  # Разрешаем все домены
+    allow_credentials=False,  # Отключаем credentials при allow_origins=*
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Подключаем роутеры

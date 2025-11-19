@@ -15,11 +15,17 @@ function AccountsManager({ campaign, onUpdate }) {
   const [editingAccount, setEditingAccount] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [proxyList, setProxyList] = useState(campaign.proxy_list || '');
+  const [savedProxies, setSavedProxies] = useState([]);
 
   useEffect(() => {
     loadAccounts();
     // Загружаем proxy_list из кампании
     setProxyList(campaign.proxy_list || '');
+    // Парсим сохранённые прокси
+    if (campaign.proxy_list) {
+      const proxies = campaign.proxy_list.split('\n').filter(p => p.trim());
+      setSavedProxies(proxies);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaign.id]);
 
@@ -67,6 +73,36 @@ function AccountsManager({ campaign, onUpdate }) {
     } catch (err) {
       alert('Ошибка удаления аккаунта: ' + err.message);
     }
+  };
+
+  const handleSaveProxies = async () => {
+    try {
+      await updateCampaign(campaign.id, { proxy_list: proxyList });
+      const proxies = proxyList.split('\n').filter(p => p.trim());
+      setSavedProxies(proxies);
+      alert('✓ Список прокси сохранён!');
+      onUpdate();
+    } catch (err) {
+      alert('Ошибка сохранения прокси: ' + err.message);
+    }
+  };
+
+  const handleClearProxies = async () => {
+    if (!window.confirm('Очистить весь список прокси?')) return;
+    
+    try {
+      setProxyList('');
+      setSavedProxies([]);
+      await updateCampaign(campaign.id, { proxy_list: '' });
+      alert('✓ Список прокси очищен!');
+      onUpdate();
+    } catch (err) {
+      alert('Ошибка очистки прокси: ' + err.message);
+    }
+  };
+
+  const getProxyUsageCount = (proxy) => {
+    return accounts.filter(acc => acc.proxy === proxy).length;
   };
 
   const handleMultipleFilesUpload = async (e) => {
@@ -201,21 +237,28 @@ function AccountsManager({ campaign, onUpdate }) {
             <textarea
               value={proxyList}
               onChange={(e) => setProxyList(e.target.value)}
-              onBlur={async () => {
-                // Автоматически сохраняем proxy_list при потере фокуса
-                try {
-                  await updateCampaign(campaign.id, { proxy_list: proxyList });
-                  console.log('✓ Proxy list saved');
-                } catch (err) {
-                  console.error('Failed to save proxy list:', err);
-                }
-              }}
               placeholder={'socks5://user:pass@host:port\nhttp://user:pass@host:port\n...'}
               rows={4}
               style={{width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontFamily: 'monospace', fontSize: '13px'}}
             />
-            <small style={{display: 'block', marginTop: '5px', color: '#718096'}}>
-              Прокси будут автоматически распределены между аккаунтами
+            <div style={{marginTop: '10px', display: 'flex', gap: '10px'}}>
+              <button 
+                className="btn-primary" 
+                onClick={handleSaveProxies}
+                style={{fontSize: '14px', padding: '8px 16px'}}
+              >
+                💾 Сохранить прокси
+              </button>
+              <button 
+                className="btn-danger" 
+                onClick={handleClearProxies}
+                style={{fontSize: '14px', padding: '8px 16px'}}
+              >
+                🗑️ Очистить прокси
+              </button>
+            </div>
+            <small style={{display: 'block', marginTop: '8px', color: '#718096'}}>
+              {savedProxies.length > 0 ? `Сохранено прокси: ${savedProxies.length}` : 'Прокси не сохранены'}
             </small>
           </div>
         </div>
@@ -282,6 +325,8 @@ function AccountsManager({ campaign, onUpdate }) {
               <h3>Редактировать аккаунт</h3>
               <AccountForm
                 account={editingAccount}
+                savedProxies={savedProxies}
+                getProxyUsageCount={getProxyUsageCount}
                 onSubmit={(data) => handleUpdate(editingAccount.session_name, data)}
                 onCancel={() => setEditingAccount(null)}
               />
@@ -293,7 +338,7 @@ function AccountsManager({ campaign, onUpdate }) {
   );
 }
 
-function AccountForm({ account, onSubmit, onCancel }) {
+function AccountForm({ account, savedProxies = [], getProxyUsageCount, onSubmit, onCancel }) {
   const [formData, setFormData] = useState(account || {
     session_name: '',
     api_id: '',
@@ -302,6 +347,12 @@ function AccountForm({ account, onSubmit, onCancel }) {
     proxy: '',
     is_active: true
   });
+  const [showProxyDropdown, setShowProxyDropdown] = useState(false);
+  const [manualProxy, setManualProxy] = useState(formData.proxy || '');
+
+  useEffect(() => {
+    setManualProxy(formData.proxy || '');
+  }, [formData.proxy]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -309,6 +360,12 @@ function AccountForm({ account, onSubmit, onCancel }) {
       ...formData,
       api_id: parseInt(formData.api_id)
     });
+  };
+
+  const handleProxySelect = (proxy) => {
+    setFormData({...formData, proxy: proxy});
+    setManualProxy(proxy);
+    setShowProxyDropdown(false);
   };
 
   return (
@@ -355,13 +412,92 @@ function AccountForm({ account, onSubmit, onCancel }) {
       </div>
 
       <div className="form-group">
-        <label>Прокси (опционально)</label>
-        <input
-          type="text"
-          value={formData.proxy}
-          onChange={(e) => setFormData({...formData, proxy: e.target.value})}
-          placeholder="socks5://user:pass@host:port"
-        />
+        <label>Прокси</label>
+        <div style={{position: 'relative'}}>
+          <input
+            type="text"
+            value={manualProxy}
+            onChange={(e) => {
+              setManualProxy(e.target.value);
+              setFormData({...formData, proxy: e.target.value});
+            }}
+            placeholder="socks5://user:pass@host:port или выберите из списка"
+            style={{width: '100%'}}
+          />
+          {savedProxies.length > 0 && (
+            <div style={{marginTop: '8px'}}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowProxyDropdown(!showProxyDropdown)}
+                style={{fontSize: '13px', padding: '6px 12px', width: '100%'}}
+              >
+                📋 {showProxyDropdown ? 'Скрыть список прокси' : `Выбрать из списка (${savedProxies.length})`}
+              </button>
+              {showProxyDropdown && (
+                <div style={{
+                  marginTop: '8px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff'
+                }}>
+                  {savedProxies.map((proxy, idx) => {
+                    const usageCount = getProxyUsageCount ? getProxyUsageCount(proxy) : 0;
+                    const isSelected = formData.proxy === proxy;
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => handleProxySelect(proxy)}
+                        style={{
+                          padding: '10px',
+                          cursor: 'pointer',
+                          borderBottom: idx < savedProxies.length - 1 ? '1px solid #e2e8f0' : 'none',
+                          backgroundColor: isSelected ? '#e6f7ff' : 'transparent',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '13px'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isSelected ? '#e6f7ff' : '#f7fafc'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isSelected ? '#e6f7ff' : 'transparent'}
+                      >
+                        <span style={{
+                          fontFamily: 'monospace',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flex: 1
+                        }}>
+                          {proxy}
+                        </span>
+                        {usageCount > 0 && (
+                          <span style={{
+                            marginLeft: '10px',
+                            backgroundColor: '#fbbf24',
+                            color: '#fff',
+                            borderRadius: '12px',
+                            padding: '2px 8px',
+                            fontSize: '11px',
+                            fontWeight: 'bold'
+                          }}>
+                            {usageCount}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <small style={{display: 'block', marginTop: '5px', color: '#718096'}}>
+          {savedProxies.length === 0 
+            ? 'Нет сохранённых прокси. Добавьте прокси выше или введите вручную.'
+            : 'Выберите из списка или введите вручную. Цифра показывает количество привязанных аккаунтов.'}
+        </small>
       </div>
 
       <div className="form-group">
