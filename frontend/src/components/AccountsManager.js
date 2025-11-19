@@ -142,36 +142,33 @@ function AccountsManager({ campaign, onUpdate }) {
           const data = response.data;
           
           console.log(`✓ JSON ${file.name} загружен`);
+          console.log(`📦 Response data:`, data);
+          
+          // Backend возвращает {message, session_name, account}
+          const accountFromResponse = data.account || data;
+          const sessionName = data.session_name || accountFromResponse.session_name;
           
           // Проверяем, есть ли аккаунт с таким именем
-          const existingAccount = accounts.find(a => a.session_name === data.session_name);
+          const existingAccount = accounts.find(a => a.session_name === sessionName);
           
-          // Создаем данные аккаунта из JSON
+          // Создаем данные аккаунта из ответа
           const accountData = {
-            session_name: data.session_name,
-            api_id: parseInt(data.api_id),
-            api_hash: data.api_hash || '',
-            proxy: data.proxy || '', // Прокси из JSON
+            session_name: sessionName,
+            api_id: parseInt(accountFromResponse.api_id),
+            api_hash: accountFromResponse.api_hash || '',
+            proxy: accountFromResponse.proxy || '', // Прокси из JSON
             is_active: true
           };
           
           console.log(`✓ Извлечены данные: api_id=${accountData.api_id}, api_hash=${accountData.api_hash ? '***' : 'ПУСТОЙ'}, proxy=${accountData.proxy ? 'есть' : 'нет'}`);
           
-          // Если аккаунт существует - обновляем, иначе создаем
-          if (existingAccount) {
-            await updateAccount(campaign.id, data.session_name, {
-              ...existingAccount,
-              api_id: accountData.api_id,
-              api_hash: accountData.api_hash,
-              proxy: accountData.proxy
-            });
-            console.log(`✓ Аккаунт ${data.session_name} обновлен с данными из JSON`);
-          } else {
-            await addAccount(campaign.id, accountData);
-            console.log(`✓ Аккаунт ${data.session_name} создан с данными из JSON`);
-          }
+          // Backend уже добавил аккаунт, просто обновляем список
+          console.log(`✓ Аккаунт ${sessionName} создан на сервере`);
         } catch (err) {
-          console.error(`✗ Ошибка обработки ${file.name}:`, err.message);
+          console.error(`✗ Ошибка обработки ${file.name}:`, err);
+          if (err.response?.data?.detail) {
+            console.error(`   Детали: ${err.response.data.detail}`);
+          }
         }
       }
       

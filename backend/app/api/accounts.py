@@ -196,17 +196,39 @@ async def upload_json(
     content = await json_file.read()
     try:
         data = json.loads(content)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON file")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON file: {str(e)}")
     
-    # Извлекаем данные
+    # Извлекаем данные - поддерживаем разные форматы
     session_name = json_file.filename.replace(".json", "")
-    api_id = data.get("app_id") or data.get("api_id")
-    api_hash = data.get("app_hash") or data.get("api_hash")
-    proxy = data.get("proxy")
+    
+    # Пробуем разные варианты ключей
+    api_id = (
+        data.get("app_id") or 
+        data.get("api_id") or 
+        data.get("APP_ID") or
+        data.get("API_ID")
+    )
+    
+    api_hash = (
+        data.get("app_hash") or 
+        data.get("api_hash") or
+        data.get("APP_HASH") or
+        data.get("API_HASH")
+    )
+    
+    proxy = data.get("proxy") or data.get("PROXY")
+    
+    # Логируем для отладки
+    print(f"📋 Parsing JSON for {session_name}")
+    print(f"   Keys in JSON: {list(data.keys())}")
+    print(f"   api_id: {api_id}, api_hash: {'present' if api_hash else 'missing'}")
     
     if not api_id or not api_hash:
-        raise HTTPException(status_code=400, detail="JSON must contain api_id and api_hash")
+        raise HTTPException(
+            status_code=400, 
+            detail=f"JSON must contain api_id and api_hash. Found keys: {list(data.keys())}"
+        )
     
     # Сохраняем JSON файл
     sessions_dir = Path("backend/data/sessions")
