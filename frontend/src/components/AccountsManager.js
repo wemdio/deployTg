@@ -167,7 +167,10 @@ function AccountsManager({ campaign, onUpdate }) {
         } catch (err) {
           console.error(`✗ Ошибка обработки ${file.name}:`, err);
           if (err.response?.data?.detail) {
-            console.error(`   Детали: ${err.response.data.detail}`);
+            console.error(`   📋 Детали от сервера: ${err.response.data.detail}`);
+            alert(`Ошибка загрузки ${file.name}:\n${err.response.data.detail}`);
+          } else {
+            console.error(`   Полный ответ:`, err.response);
           }
         }
       }

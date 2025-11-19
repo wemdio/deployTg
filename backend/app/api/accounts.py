@@ -202,33 +202,39 @@ async def upload_json(
     # Извлекаем данные - поддерживаем разные форматы
     session_name = json_file.filename.replace(".json", "")
     
-    # Пробуем разные варианты ключей
-    api_id = (
-        data.get("app_id") or 
-        data.get("api_id") or 
-        data.get("APP_ID") or
-        data.get("API_ID")
-    )
-    
-    api_hash = (
-        data.get("app_hash") or 
-        data.get("api_hash") or
-        data.get("APP_HASH") or
-        data.get("API_HASH")
-    )
-    
-    proxy = data.get("proxy") or data.get("PROXY")
-    
     # Логируем для отладки
     print(f"📋 Parsing JSON for {session_name}")
+    print(f"   Full JSON data: {data}")
     print(f"   Keys in JSON: {list(data.keys())}")
-    print(f"   api_id: {api_id}, api_hash: {'present' if api_hash else 'missing'}")
     
+    # Пробуем разные варианты ключей для api_id
+    api_id = None
+    for key in ["app_id", "api_id", "APP_ID", "API_ID", "appId", "apiId"]:
+        if key in data:
+            api_id = data[key]
+            print(f"   Found api_id with key '{key}': {api_id}")
+            break
+    
+    # Пробуем разные варианты ключей для api_hash
+    api_hash = None
+    for key in ["app_hash", "api_hash", "APP_HASH", "API_HASH", "appHash", "apiHash"]:
+        if key in data:
+            api_hash = data[key]
+            print(f"   Found api_hash with key '{key}': present")
+            break
+    
+    # Прокси
+    proxy = None
+    for key in ["proxy", "PROXY"]:
+        if key in data:
+            proxy = data[key]
+            break
+    
+    # Проверяем обязательные поля
     if not api_id or not api_hash:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"JSON must contain api_id and api_hash. Found keys: {list(data.keys())}"
-        )
+        error_msg = f"JSON must contain api_id and api_hash. Found keys: {list(data.keys())}"
+        print(f"   ❌ ERROR: {error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
     
     # Сохраняем JSON файл
     sessions_dir = Path("backend/data/sessions")
