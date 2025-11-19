@@ -2,6 +2,7 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
+# Updated: 2025-01-19
 
 # Pydantic для валидации
 pydantic==2.5.0

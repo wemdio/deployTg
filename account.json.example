@@ -1,0 +1,6 @@
+{
+  "api_id": 12345678,
+  "api_hash": "abcdef1234567890abcdef1234567890",
+  "proxy": "socks5://user:password@proxy.example.com:1080"
+}
+
