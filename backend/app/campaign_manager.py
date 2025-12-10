@@ -51,18 +51,18 @@ class CampaignManager:
         
         try:
             with open(temp_path, "w", encoding="utf-8") as f:
-                json.dump(campaign, f, indent=2, ensure_ascii=False)
-            
+            json.dump(campaign, f, indent=2, ensure_ascii=False)
+        
             # Атомарно заменяем старый файл новым
             temp_path.replace(file_path)
             
-            self.campaigns[campaign_id] = campaign
-            print(f"💾 Saved campaign: {campaign['name']} ({campaign_id})")
+        self.campaigns[campaign_id] = campaign
+        print(f"💾 Saved campaign: {campaign['name']} ({campaign_id})")
         except Exception as e:
             print(f"❌ Failed to save campaign {campaign_id}: {e}")
             if temp_path.exists():
                 temp_path.unlink()
-
+    
     def get_campaign(self, campaign_id: str) -> Optional[dict]:
         """Получает кампанию по ID"""
         return self.campaigns.get(campaign_id)
@@ -264,17 +264,18 @@ class CampaignManager:
             print(f"❌ Campaign {campaign_id} not found")
             return False
         
+        # Если процесса нет в памяти, но статус running - просто меняем статус
         if campaign_id not in self.processes:
-            print(f"⚠️ Campaign {campaign_id} not running")
+            print(f"⚠️ Campaign {campaign_id} not found in processes list (likely crashed)")
             campaign["status"] = "stopped"
             self.save_campaign(campaign)
-            return False
+            return True
         
         process = self.processes[campaign_id]
         
         try:
             # Пробуем graceful shutdown
-            print(f"🛑 Stopping campaign {campaign['name']}...")
+            print(f"🛑 Stopping campaign {campaign['name']} (PID: {process.pid})...")
             process.terminate()
             
             # Ждем до 10 секунд
@@ -286,7 +287,9 @@ class CampaignManager:
                 process.kill()
                 process.wait()
             
-            del self.processes[campaign_id]
+            # Убираем из списка процессов
+            if campaign_id in self.processes:
+                del self.processes[campaign_id]
             
             # Обновляем статус
             campaign["status"] = "stopped"
@@ -297,41 +300,49 @@ class CampaignManager:
         
         except Exception as e:
             print(f"❌ Failed to stop campaign {campaign['name']}: {e}")
-            return False
+            
+            # Даже при ошибке стараемся очистить состояние
+            if campaign_id in self.processes:
+                del self.processes[campaign_id]
+            
+            campaign["status"] = "stopped"
+            self.save_campaign(campaign)
+            
+            return True  # Возвращаем True, так как мы форсированно остановили её логически
     
     def get_campaign_status(self, campaign_id: str) -> dict:
         """Получает статус кампании"""
         try:
-            campaign = self.get_campaign(campaign_id)
-            if not campaign:
-                return {"status": "not_found"}
-            
-            is_running = False
-            pid = None
-            
-            if campaign_id in self.processes:
-                proc = self.processes[campaign_id]
-                if proc.poll() is None:
-                    is_running = True
-                    pid = proc.pid
-                else:
-                    # Процесс завершился
-                    del self.processes[campaign_id]
-            
-            # Обновляем статус если нужно
+        campaign = self.get_campaign(campaign_id)
+        if not campaign:
+            return {"status": "not_found"}
+        
+        is_running = False
+        pid = None
+        
+        if campaign_id in self.processes:
+            proc = self.processes[campaign_id]
+            if proc.poll() is None:
+                is_running = True
+                pid = proc.pid
+            else:
+                # Процесс завершился
+                del self.processes[campaign_id]
+        
+        # Обновляем статус если нужно
             current_status = campaign.get("status", "stopped")
             if is_running and current_status != "running":
-                campaign["status"] = "running"
-                self.save_campaign(campaign)
+            campaign["status"] = "running"
+            self.save_campaign(campaign)
             elif not is_running and current_status == "running":
-                campaign["status"] = "stopped"
-                self.save_campaign(campaign)
-            
-            return {
-                "status": campaign["status"],
-                "is_running": is_running,
-                "pid": pid
-            }
+            campaign["status"] = "stopped"
+            self.save_campaign(campaign)
+        
+        return {
+            "status": campaign["status"],
+            "is_running": is_running,
+            "pid": pid
+        }
         except Exception as e:
             print(f"❌ Error getting status for {campaign_id}: {e}")
             return {
