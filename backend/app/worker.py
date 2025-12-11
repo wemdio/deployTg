@@ -753,25 +753,49 @@ async def _reply_once_for_batch(
     # Загружаем историю разговора
     history = convo_load(session_name, uid, username)
     
-    # Если история пуста, пробуем подгрузить контекст (наше первое сообщение)
-    if not history:
+    # Проверяем, есть ли в истории наши ответы (role=assistant)
+    # Если нет, значит это начало диалога для бота, и нужно найти наше стартовое сообщение (рассылку)
+    has_assistant_msg = any(m.get('role') == 'assistant' for m in history)
+    
+    if not has_assistant_msg:
         try:
             # Ищем последнее исходящее сообщение от нас (это и есть рассылка)
-            # Берем limit=30 чтобы наверняка найти, даже если юзер много написал
+            # Берем limit=30 чтобы наверняка найти
             last_outgoing = None
             async for m in client.iter_messages(uid, limit=30):
                 if m.out and m.text:
+                    # Проверяем, не является ли это сообщение одним из тех, что мы только что получили как входящие
+                    # (хотя m.out=True это исключает, но на всякий случай)
                     last_outgoing = m
                     break  # Нашли самое свежее исходящее
             
             if last_outgoing:
                 txt = last_outgoing.text.strip()
                 if txt:
-                    log_info(f"{session_name}: found initial context: {txt[:50]}...")
-                    # Добавляем в файл
-                    convo_append(session_name, uid, "assistant", txt, username)
-                    # Обновляем переменную history
-                    history = convo_load(session_name, uid, username)
+                    log_info(f"{session_name}: found initial context from history: {txt[:50]}...")
+                    # Добавляем в файл как assistant (наш ответ)
+                    # ВАЖНО: Добавляем в НАЧАЛО истории, если history уже загружен но там только user
+                    if not history:
+                        convo_append(session_name, uid, "assistant", txt, username)
+                        history = convo_load(session_name, uid, username)
+                    else:
+                        # Если история уже есть (там сообщения юзера), мы должны вставить наше сообщение перед ними
+                        # Но convo_append пишет в конец файла. 
+                        # Поэтому просто перезапишем history в памяти для текущего запроса к GPT
+                        # А в файл запишем для будущих запросов
+                        
+                        # 1. Пишем в файл (будет в конце, но с role=assistant) - это не идеально для хронологии файла, 
+                        # но convo_load читает последние N.
+                        # Лучше просто добавить в начало списка messages для GPT сейчас.
+                        
+                        # Корректный подход: Добавить в messages как первое сообщение после system prompt
+                        history.insert(0, {"role": "assistant", "content": txt})
+                        
+                        # И сохраним в файл, чтобы потом не искать снова? 
+                        # Если сохраним в конец - нарушим хронологию.
+                        # Если не сохраним - будем искать каждый раз. Это нормально.
+                        pass
+                        
         except Exception as e:
             log_error(f"{session_name}: failed to load initial context: {e!r}")
 
@@ -1224,7 +1248,11 @@ async def setup_clients():
                 session_path,
                 api_id,
                 api_hash,
-                proxy=proxy_dict
+                proxy=proxy_dict,
+                connection_retries=1,
+                retry_delay=1,
+                auto_reconnect=False,
+                timeout=15
             )
             clients.append((cl, name))
         except Exception as e:
