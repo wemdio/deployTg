@@ -6,6 +6,7 @@ function DialogHistory({ campaignId }) {
   const [loading, setLoading] = useState(true);
   const [selectedDialog, setSelectedDialog] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('last_message'); // 'last_message' | 'messages_count'
 
   useEffect(() => {
     loadDialogs();
@@ -16,7 +17,32 @@ function DialogHistory({ campaignId }) {
     try {
       setLoading(true);
       const response = await getCampaignDialogs(campaignId);
-      setDialogs(response.data);
+      
+      const processedDialogs = response.data.map(d => {
+        // Извлекаем дату последнего сообщения из контента, если возможно
+        let lastMsgDate = new Date(0);
+        if (d.messages && d.messages.length > 0) {
+          const lastMsg = d.messages[d.messages.length - 1];
+          // Если есть поле timestamp или date
+          if (lastMsg.date) {
+            lastMsgDate = new Date(lastMsg.date);
+          } else {
+            // Если дата в тексте "[2023-01-01 12:00:00] Text..."
+            const dateMatch = lastMsg.content?.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/);
+            if (dateMatch) {
+              lastMsgDate = new Date(dateMatch[1]);
+            }
+          }
+        }
+        
+        return {
+          ...d,
+          lastMessageDate: lastMsgDate,
+          status: d.status || 'new'
+        };
+      });
+      
+      setDialogs(processedDialogs);
     } catch (err) {
       console.error('Error loading dialogs:', err);
     } finally {
@@ -24,26 +50,72 @@ function DialogHistory({ campaignId }) {
     }
   };
 
-  const handleDelete = async (sessionName, userId) => {
-    if (!window.confirm('Удалить историю диалога?')) return;
+  const filteredDialogs = dialogs
+    .filter(dialog => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        dialog.username?.toLowerCase().includes(term) ||
+        dialog.user_id.toString().includes(term) ||
+        dialog.session_name.toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === 'last_message') {
+        return b.lastMessageDate - a.lastMessageDate;
+      }
+      return b.messages.length - a.messages.length;
+    });
 
-    try {
-      await deleteDialog(campaignId, sessionName, userId);
-      await loadDialogs();
-    } catch (err) {
-      alert('Ошибка удаления диалога: ' + err.message);
+  const formatDate = (date) => {
+    if (!date || date.getTime() === 0) return '-';
+    return date.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+    // TODO: Implement API endpoint for status update
+    // await updateDialogStatusApi(campaignId, dialog.session_name, dialog.user_id, status);
+    
+    // Optimistic update
+    setDialogs(dialogs.map(d => 
+      (d.session_name === dialog.session_name && d.user_id === dialog.user_id)
+        ? { ...d, status }
+        : d
+    ));
+    if (selectedDialog && selectedDialog.session_name === dialog.session_name && selectedDialog.user_id === dialog.user_id) {
+      setSelectedDialog({ ...selectedDialog, status });
     }
   };
 
-  const filteredDialogs = dialogs.filter(dialog => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      dialog.username?.toLowerCase().includes(term) ||
-      dialog.user_id.toString().includes(term) ||
-      dialog.session_name.toLowerCase().includes(term)
-    );
-  });
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'lead': return <span className="badge badge-success">Лид</span>;
+      case 'not_lead': return <span className="badge badge-danger">Не лид</span>;
+      case 'later': return <span className="badge badge-warning">Потом</span>;
+      default: return <span className="badge badge-secondary">Новый</span>;
+    }
+  };
+
+  const filteredDialogs = dialogs
+    .filter(dialog => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        dialog.username?.toLowerCase().includes(term) ||
+        dialog.user_id.toString().includes(term) ||
+        dialog.session_name.toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date') {
+        // Mock sorting by date since we don't have real dates yet
+        return b.messages.length - a.messages.length; 
+      }
+      return b.messages.length - a.messages.length;
+    });
 
   if (loading) {
     return <div className="loading">Загрузка диалогов...</div>;
@@ -52,14 +124,24 @@ function DialogHistory({ campaignId }) {
   return (
     <div className="dialog-history">
       <div className="card">
-        <div className="card-header">
-          <h2>💬 История диалогов</h2>
+        <div className="card-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+            <h2>💬 История диалогов</h2>
+            <select 
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{padding: '5px', borderRadius: '4px', border: '1px solid #e2e8f0'}}
+            >
+              <option value="last_message">По новизне</option>
+              <option value="messages_count">По кол-ву сообщений</option>
+            </select>
+          </div>
           <input
             type="text"
             placeholder="Поиск по username, ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{width: '300px'}}
+            style={{width: '300px', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0'}}
           />
         </div>
 
@@ -73,7 +155,8 @@ function DialogHistory({ campaignId }) {
               <tr>
                 <th>Аккаунт</th>
                 <th>Пользователь</th>
-                <th>ID</th>
+                <th>Последнее сообщение</th>
+                <th>Статус</th>
                 <th>Сообщений</th>
                 <th>Действия</th>
               </tr>
@@ -82,8 +165,12 @@ function DialogHistory({ campaignId }) {
               {filteredDialogs.map(dialog => (
                 <tr key={`${dialog.session_name}_${dialog.user_id}`}>
                   <td>{dialog.session_name}</td>
-                  <td>{dialog.username ? `@${dialog.username}` : '-'}</td>
-                  <td>{dialog.user_id}</td>
+                  <td>
+                    <div>{dialog.username ? `@${dialog.username}` : '-'}</div>
+                    <div style={{fontSize: '11px', color: '#666'}}>ID: {dialog.user_id}</div>
+                  </td>
+                  <td style={{fontSize: '13px'}}>{formatDate(dialog.lastMessageDate)}</td>
+                  <td>{getStatusBadge(dialog.status)}</td>
                   <td>{dialog.messages.length}</td>
                   <td>
                     <button
@@ -91,7 +178,7 @@ function DialogHistory({ campaignId }) {
                       onClick={() => setSelectedDialog(dialog)}
                       style={{marginRight: '5px'}}
                     >
-                      👁 Просмотр
+                      👁
                     </button>
                     <button
                       className="btn-danger"
@@ -120,7 +207,7 @@ function DialogHistory({ campaignId }) {
               </button>
             </div>
             
-            <div className="dialog-messages">
+            <div className="dialog-messages" style={{maxHeight: '70vh', minHeight: '50vh', overflowY: 'auto'}}>
               {selectedDialog.messages.map((msg, idx) => (
                 <div 
                   key={idx} 
@@ -143,19 +230,45 @@ function DialogHistory({ campaignId }) {
               ))}
             </div>
 
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setSelectedDialog(null)}>
-                Закрыть
-              </button>
-              <button 
-                className="btn-danger" 
-                onClick={() => {
-                  handleDelete(selectedDialog.session_name, selectedDialog.user_id);
-                  setSelectedDialog(null);
-                }}
-              >
-                🗑 Удалить диалог
-              </button>
+            <div className="modal-footer" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <div className="status-actions">
+                <button 
+                  className={`btn-status ${selectedDialog.status === 'lead' ? 'active' : ''}`}
+                  onClick={() => updateDialogStatus(selectedDialog, 'lead')}
+                  style={{backgroundColor: '#48bb78', color: 'white', marginRight: '5px'}}
+                >
+                  Лид
+                </button>
+                <button 
+                  className={`btn-status ${selectedDialog.status === 'not_lead' ? 'active' : ''}`}
+                  onClick={() => updateDialogStatus(selectedDialog, 'not_lead')}
+                  style={{backgroundColor: '#f56565', color: 'white', marginRight: '5px'}}
+                >
+                  Не лид
+                </button>
+                <button 
+                  className={`btn-status ${selectedDialog.status === 'later' ? 'active' : ''}`}
+                  onClick={() => updateDialogStatus(selectedDialog, 'later')}
+                  style={{backgroundColor: '#ecc94b', color: 'white'}}
+                >
+                  Потом
+                </button>
+              </div>
+              
+              <div>
+                <button className="btn-secondary" onClick={() => setSelectedDialog(null)} style={{marginRight: '10px'}}>
+                  Закрыть
+                </button>
+                <button 
+                  className="btn-danger" 
+                  onClick={() => {
+                    handleDelete(selectedDialog.session_name, selectedDialog.user_id);
+                    setSelectedDialog(null);
+                  }}
+                >
+                  🗑 Удалить
+                </button>
+              </div>
             </div>
           </div>
         </div>

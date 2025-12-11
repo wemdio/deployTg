@@ -13,8 +13,18 @@ import {
 } from '../api/client';
 
 function CampaignTabs({ campaigns, onUpdate }) {
-  const [selectedTab, setSelectedTab] = useState(0);
+  // Инициализируем из localStorage если есть, иначе 0
+  const [selectedTab, setSelectedTab] = useState(() => {
+    const saved = localStorage.getItem('selectedCampaignTab');
+    return saved ? parseInt(saved) : 0;
+  });
   const [statuses, setStatuses] = useState({});
+
+  // Сохраняем выбранную вкладку при изменении
+  const handleTabSelect = (index) => {
+    setSelectedTab(index);
+    localStorage.setItem('selectedCampaignTab', index);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -57,7 +67,7 @@ function CampaignTabs({ campaigns, onUpdate }) {
         
         // Логируем только если это не сетевая ошибка
         if (!err.message?.includes('Network Error') && !err.code?.includes('ERR_NETWORK')) {
-          console.error(`Error loading status for ${campaign.id}:`, err);
+        console.error(`Error loading status for ${campaign.id}:`, err);
         }
       }
     }
@@ -98,7 +108,7 @@ function CampaignTabs({ campaigns, onUpdate }) {
   };
 
   return (
-    <Tabs selectedIndex={selectedTab} onSelect={index => setSelectedTab(index)}>
+    <Tabs selectedIndex={selectedTab} onSelect={handleTabSelect}>
       <TabList>
         {campaigns.map(campaign => (
           <Tab key={campaign.id}>
@@ -151,7 +161,7 @@ function CampaignTabs({ campaigns, onUpdate }) {
               </div>
 
               {/* Внутренние вкладки кампании */}
-              <Tabs>
+              <Tabs forceRenderTabPanel={true}>
                 <TabList>
                   <Tab>Настройки</Tab>
                   <Tab>Аккаунты</Tab>
